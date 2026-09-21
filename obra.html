@@ -15,14 +15,16 @@
     --text: #16181D;
     --text-soft: #6B7078;
     --text-faint: #9CA1AB;
-    --primary: #2F6FED;
-    --primary-hover: #2559C7;
-    --primary-soft: #E9F0FE;
+    --primary: #CA8A04;
+    --primary-hover: #A16207;
+    --primary-soft: #FEF9C3;
+    --primary-on: #422006;
     --danger: #E0393E;
     --danger-soft: #FCEAEA;
     --todo-bg: #ECEDF0; --todo-fg: #7C818A;
-    --planned-bg: #DCE9FE; --planned-fg: #2F6FED;
-    --progress-bg: #FEF0D6; --progress-fg: #B27600;
+    --planned-bg: #FEF3C7; --planned-fg: #92400E;
+    --progress-bg: #FFEDD5; --progress-fg: #C2410C;
+    --today-col-bg: #FEF08A;
     --done-bg: #DDF3E4; --done-fg: #1E8A4C;
     color-scheme: light;
     padding-top: env(safe-area-inset-top, 0px);
@@ -38,14 +40,16 @@
       --text: #EDEEF0;
       --text-soft: #9BA0A8;
       --text-faint: #6E727A;
-      --primary: #5C8DFF;
-      --primary-hover: #7BA1FF;
-      --primary-soft: #1E2A44;
+      --primary: #FACC15;
+      --primary-hover: #FDE047;
+      --primary-soft: #3F3812;
+      --primary-on: #1C1917;
       --danger: #F0605F;
       --danger-soft: #3A2323;
       --todo-bg: #2B2C30; --todo-fg: #9BA0A8;
-      --planned-bg: #1E2A44; --planned-fg: #7BA1FF;
-      --progress-bg: #3B3120; --progress-fg: #E0AA4E;
+      --planned-bg: #422006; --planned-fg: #FDE047;
+      --progress-bg: #3B3120; --progress-fg: #FDBA74;
+      --today-col-bg: #45401A;
       --done-bg: #1E3327; --done-fg: #52C285;
       color-scheme: dark;
     }
@@ -54,11 +58,12 @@
     --bg: #17181B; --surface: #1E1F23; --surface-2: #232428;
     --border: #303236; --border-strong: #3D3F44;
     --text: #EDEEF0; --text-soft: #9BA0A8; --text-faint: #6E727A;
-    --primary: #5C8DFF; --primary-hover: #7BA1FF; --primary-soft: #1E2A44;
+    --primary: #FACC15; --primary-hover: #FDE047; --primary-soft: #3F3812; --primary-on: #1C1917;
     --danger: #F0605F; --danger-soft: #3A2323;
     --todo-bg: #2B2C30; --todo-fg: #9BA0A8;
-    --planned-bg: #1E2A44; --planned-fg: #7BA1FF;
-    --progress-bg: #3B3120; --progress-fg: #E0AA4E;
+    --planned-bg: #422006; --planned-fg: #FDE047;
+    --progress-bg: #3B3120; --progress-fg: #FDBA74;
+    --today-col-bg: #45401A;
     --done-bg: #1E3327; --done-fg: #52C285;
     color-scheme: dark;
   }
@@ -85,10 +90,22 @@
     padding: 18px 12px;
     padding-top: calc(18px + env(safe-area-inset-top, 0px));
     display: flex; flex-direction: column; gap: 18px;
+    transition: width 0.2s ease, flex-basis 0.2s ease, padding 0.2s ease;
   }
-  .brand { display: flex; align-items: center; gap: 9px; padding: 0 8px; }
+  .sidebar-head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;
+  }
+  .sidebar-collapse-btn {
+    flex-shrink: 0; width: 28px; height: 28px; padding: 0; margin-top: 1px;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+    color: var(--text-soft); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sidebar-collapse-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--border-strong); }
+  .sidebar-collapse-btn svg { width: 16px; height: 16px; transition: transform 0.2s ease; }
+  .brand { display: flex; align-items: center; gap: 9px; padding: 0 8px; min-width: 0; flex: 1; }
   .brand .mark {
-    width: 26px; height: 26px; border-radius: 7px; background: var(--primary); color: #fff;
+    width: 26px; height: 26px; border-radius: 7px; background: var(--primary); color: var(--primary-on);
     display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0;
   }
   .brand .txt { min-width: 0; }
@@ -102,11 +119,27 @@
     font-family: inherit; font-size: 13.5px; font-weight: 500; color: var(--text-soft);
   }
   .nav-btn svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.85; }
+  .nav-btn .nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nav-btn:hover { background: var(--surface-2); color: var(--text); }
   .nav-btn.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
   .nav-btn.active svg { opacity: 1; }
 
   .sidebar-foot { margin-top: auto; padding: 10px 10px 0; font-size: 11px; color: var(--text-faint); border-top: 1px solid var(--border); }
+
+  @media (min-width: 861px) {
+    .app.sidebar-collapsed .sidebar {
+      width: 58px; flex: 0 0 58px; padding-left: 8px; padding-right: 8px;
+    }
+    .app.sidebar-collapsed .sidebar-head { flex-direction: column; align-items: center; gap: 10px; }
+    .app.sidebar-collapsed .brand { padding: 0; justify-content: center; }
+    .app.sidebar-collapsed .brand .txt,
+    .app.sidebar-collapsed .sidebar-foot,
+    .app.sidebar-collapsed .nav-label { display: none; }
+    .app.sidebar-collapsed .nav-btn {
+      justify-content: center; padding-left: 8px; padding-right: 8px;
+    }
+    .app.sidebar-collapsed .sidebar-collapse-btn svg { transform: rotate(180deg); }
+  }
 
   /* ---------- Main ---------- */
   .main { flex: 1 1 auto; min-width: 0; padding: 24px 28px 80px; padding-top: calc(24px + env(safe-area-inset-top, 0px)); }
@@ -121,7 +154,7 @@
     display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
   }
   .btn:hover { background: var(--surface-2); }
-  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-on); }
   .btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
   .btn.small { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
   .btn.danger-txt { background: transparent; border-color: transparent; color: var(--danger); }
@@ -168,9 +201,27 @@
   .expand-toggle { background: none; border: none; cursor: pointer; color: var(--primary); font-size: 11.5px; font-weight: 600; padding: 3px 0 0; text-align: left; display: block; }
   .expand-toggle:hover { text-decoration: underline; }
 
-  .progress-track { width: 84px; height: 6px; background: var(--todo-bg); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 7px; }
-  .progress-track > span { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
-  .pct-text { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-soft); font-weight: 600; }
+  th.avance-cell, td.avance-cell { min-width: 156px; width: 156px; white-space: nowrap; }
+  td.avance-cell { vertical-align: middle; }
+  .progress-bar-slot {
+    width: 92px; display: inline-block; vertical-align: middle; margin-right: 8px;
+  }
+  .progress-track {
+    display: flex; width: 100%; height: 6px; background: var(--todo-bg); border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    display: block; height: 100%; flex: 0 0 auto; background: var(--primary); border-radius: 3px 0 0 3px;
+  }
+  .progress-track:not(.is-over) .progress-fill { border-radius: 3px; }
+  .progress-overflow {
+    display: block; height: 100%; flex: 0 0 auto; min-width: 1px;
+    background: var(--danger); border-radius: 0 3px 3px 0;
+  }
+  .pct-text { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-soft); font-weight: 600; vertical-align: middle; }
+  .pct-text.over { color: var(--danger); font-weight: 700; }
+  .num-cell.num-negative { color: var(--danger); font-weight: 600; }
+  .badge.over { background: var(--danger-soft); color: var(--danger); }
 
   .entries-row > td { background: var(--surface-2); padding: 16px; }
   .entries-wrap { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
@@ -188,10 +239,34 @@
 
   .actions-cell { white-space: nowrap; text-align: right; }
 
+  .drag-col { width: 36px; padding-left: 8px !important; padding-right: 4px !important; }
+  .drag-cell { width: 36px; padding: 8px 4px 8px 8px !important; vertical-align: middle; }
+  .drag-handle {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px;
+    background: transparent; color: var(--text-faint); cursor: grab; flex-shrink: 0;
+  }
+  .drag-handle:hover { background: var(--todo-bg); color: var(--text-soft); }
+  .drag-handle:active { cursor: grabbing; }
+  .drag-handle svg { width: 14px; height: 14px; pointer-events: none; }
+  tr.activity-row.dragging { opacity: 0.45; }
+  tr.activity-row.drag-over > td { box-shadow: inset 0 2px 0 var(--primary); }
+  tr.periods-row.dragging-with-parent { opacity: 0.45; }
+
   .legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--border); }
   .legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-soft); font-weight: 500; }
   .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-
+  .legend i.today-swatch { background: var(--today-col-bg); box-shadow: inset 0 0 0 1.5px var(--primary); }
+  .sched-today-hint {
+    font-size: 12px; padding: 0 16px 10px; margin: 0; color: var(--text-soft);
+    border-bottom: 1px solid var(--border);
+  }
+  .sched-today-hint strong { color: var(--primary); font-weight: 700; }
+  .sched-table thead th.is-today,
+  .sched-table tbody td.week-cell.is-today {
+    background: var(--today-col-bg);
+    box-shadow: inset 0 0 0 2px var(--primary);
+  }
   .sched-table thead th.activity-header, .sched-table tbody td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; font-weight: 500; min-width: 190px; }
   .sched-table thead th.activity-header { background: var(--surface-2); z-index: 3; }
   .sched-table thead th { text-align: center; }
@@ -221,9 +296,25 @@
   .periods-summary { font-size: 12px; color: var(--text-soft); margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }
   .periods-summary b { color: var(--text); }
 
+  .cortes-table thead th.corte-col { text-align: right; min-width: 88px; }
+  .cortes-table tbody td.corte-amt { text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-soft); }
+  .cortes-table tbody td.corte-amt.has-value { color: var(--text); font-weight: 500; }
+  .cortes-table tbody tr.totals-row td { font-weight: 700; background: var(--surface-2); border-top: 2px solid var(--border-strong); }
+  .cortes-table tbody tr.totals-row td.corte-amt { color: var(--text); }
+  .cortes-table thead th.activity-header, .cortes-table tbody td.name-col { position: sticky; left: 0; background: var(--surface); z-index: 1; min-width: 180px; max-width: 220px; }
+  .cortes-table thead th.activity-header { background: var(--surface-2); z-index: 2; }
+  .cortes-table .name-col { font-weight: 500; font-size: 12.5px; }
+  .corte-stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .corte-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .corte-stat .lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); margin-bottom: 4px; }
+  .corte-stat .dates { font-size: 11px; color: var(--text-soft); margin-bottom: 6px; line-height: 1.25; }
+  .corte-stat .val { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+
   @media (max-width: 860px) {
     .app { flex-direction: column; }
     .sidebar { width: 100%; flex: 0 0 auto; flex-direction: row; align-items: center; overflow-x: auto; gap: 10px; padding: 12px; }
+    .sidebar-head { flex-direction: row; align-items: center; flex: 0 0 auto; }
+    .sidebar-collapse-btn { display: none; }
     .brand { flex-shrink: 0; }
     .nav-group { flex-direction: row; }
     .sidebar-foot { display: none; }
@@ -233,24 +324,33 @@
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
 
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="mark">C</div>
-      <div class="txt">
-        <div class="l1">Control de obra</div>
-        <div class="l2">Casa · cortes quincenales</div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="brand">
+        <div class="mark">C</div>
+        <div class="txt">
+          <div class="l1">Control de obra</div>
+          <div class="l2">Casa · cortes ~15 días</div>
+        </div>
       </div>
+      <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" aria-label="Contraer menú" aria-expanded="true" title="Contraer menú">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
     </div>
     <div class="nav-group">
-      <button class="nav-btn active" data-view="cronograma">
+      <button class="nav-btn active" data-view="cronograma" title="Cronograma">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
-        Cronograma
+        <span class="nav-label">Cronograma</span>
       </button>
-      <button class="nav-btn" data-view="actividades">
+      <button class="nav-btn" data-view="actividades" title="Actividades">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-        Actividades y presupuesto
+        <span class="nav-label">Actividades</span>
+      </button>
+      <button class="nav-btn" data-view="cortes" title="Pagos por corte">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h2M11 15h6"/></svg>
+        <span class="nav-label">Pagos por corte</span>
       </button>
     </div>
     <div class="sidebar-foot">Guardado automáticamente en este dispositivo.</div>
@@ -276,7 +376,9 @@
           <span><i style="background:var(--planned-bg)"></i>Planeada (según cronograma)</span>
           <span><i style="background:var(--progress-bg)"></i>En progreso</span>
           <span><i style="background:var(--done-bg)"></i>Terminada</span>
+          <span><i class="today-swatch"></i>Hoy (columna resaltada)</span>
         </div>
+        <p class="sched-today-hint" id="sched-today-hint" hidden></p>
         <div class="table-scroll">
           <table class="sched-table">
             <thead id="sched-thead"></thead>
@@ -295,8 +397,8 @@
     <section class="view" id="view-actividades">
       <div class="topbar">
         <div>
-          <h1>Actividades y presupuesto</h1>
-          <p>Datos importados de tu tracker (CSV). Cada actividad tiene 15 cortes quincenales fijos, alineados con el cronograma; haz clic en "Ver cortes" para registrar el pago de cada uno.</p>
+          <h1>Actividades</h1>
+          <p>Presupuesto por actividad. Cada actividad tiene 15 cortes de ~15 días desde el 15 abr; haz clic en "Ver cortes" para registrar la cantidad ejecutada en cada uno.</p>
         </div>
         <button class="btn primary" id="add-activity-btn">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -336,6 +438,7 @@
           <table>
             <thead>
               <tr>
+                <th class="drag-col" aria-label="Reordenar"></th>
                 <th style="min-width:200px">Actividad</th>
                 <th>Unidad</th>
                 <th>Cant. total</th>
@@ -344,12 +447,32 @@
                 <th>Cant. acumulada</th>
                 <th>Total pagado</th>
                 <th>Saldo</th>
-                <th>Avance %</th>
+                <th class="avance-cell">Avance %</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="activities-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-cortes">
+      <div class="topbar">
+        <div>
+          <h1>Pagos por corte</h1>
+          <p>Valor pagado en cada corte = cantidad registrada × precio/unidad de la actividad. Los totales se actualizan con lo que ingresas en Actividades.</p>
+        </div>
+      </div>
+
+      <div class="corte-stat-grid" id="corte-stat-grid"></div>
+
+      <div class="card">
+        <div class="table-scroll">
+          <table class="cortes-table">
+            <thead id="cortes-thead"></thead>
+            <tbody id="cortes-body"></tbody>
           </table>
         </div>
       </div>
@@ -361,6 +484,34 @@
 <script>
 (function(){
   const STORAGE_KEY = 'houseBuild_v5';
+  const SIDEBAR_COLLAPSED_KEY = 'obra_sidebar_collapsed';
+
+  const appEl = document.getElementById('app');
+  const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
+
+  function setSidebarCollapsed(collapsed){
+    if (!appEl) return;
+    appEl.classList.toggle('sidebar-collapsed', collapsed);
+    if (!sidebarCollapseBtn) return;
+    sidebarCollapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    const label = collapsed ? 'Expandir menú' : 'Contraer menú';
+    sidebarCollapseBtn.setAttribute('aria-label', label);
+    sidebarCollapseBtn.title = label;
+  }
+
+  function initSidebarCollapse(){
+    try {
+      if (localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1') setSidebarCollapsed(true);
+    } catch (e) { /* ignore */ }
+    if (sidebarCollapseBtn) {
+      sidebarCollapseBtn.addEventListener('click', () => {
+        const collapsed = !appEl.classList.contains('sidebar-collapsed');
+        setSidebarCollapsed(collapsed);
+        try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (e) { /* ignore */ }
+      });
+    }
+  }
+  initSidebarCollapse();
 
   const DEFAULT_ACTIVITIES = [
     'Inst. eléctricas','Inst. hidráulicas','Inst. sanitarias','Inst. aguas lluvias',
@@ -386,6 +537,18 @@
     { month: 'Noviembre', semana: 'Semana 3', range: 'Nov 16–21', days: [['Nov',16],['Nov',17],['Nov',18],['Nov',19],['Nov',20],['Nov',21]] }
   ];
   const WEEKDAY_LETTERS = ['L','M','M','J','V','S'];
+  const SCHEDULE_YEAR = 2026;
+  const DAY_ID_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAY_LABEL_MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+  function getScheduleTodayInfo(){
+    const now = new Date();
+    const todayId = DAY_ID_MONTHS[now.getMonth()] + now.getDate();
+    const label = `${now.getDate()} ${DAY_LABEL_MONTHS[now.getMonth()]}`;
+    const inScheduleYear = now.getFullYear() === SCHEDULE_YEAR;
+    const onGrid = inScheduleYear && state.days.some(d => d.id === todayId);
+    return { todayId, label, inScheduleYear, onGrid };
+  }
 
   function buildDefaultDays(){
     const days = [];
@@ -424,19 +587,20 @@
 
   function uid(){ return Math.random().toString(36).slice(2,10); }
 
-  // Fixed biweekly payment periods (cortes), generated forward from the same
-  // Mon–Sat work-week pattern as the cronograma, starting Sep 14. This reproduces
-  // the 5 periods from the CSV exactly and extends them to cover the whole project.
+  // Payment periods (cortes): ~15 days each, starting Apr 15 (corte 1).
   const PERIOD_COUNT = 15;
+  const CORTE_DAYS = 15;
   const MONTH_ABBR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   function fmtDate(d){ return MONTH_ABBR[d.getMonth()] + ' ' + String(d.getDate()).padStart(2, '0'); }
   function generatePaymentPeriods(count){
     const periods = [];
-    const base = new Date(2026, 8, 14); // Sep 14, 2026 (Monday) — start of the cronograma
+    const base = new Date(2026, 3, 15); // Apr 15, 2026 — corte 1
     for (let i = 0; i < count; i++) {
-      const weekAStart = new Date(base); weekAStart.setDate(base.getDate() + i * 14);
-      const weekBEnd = new Date(weekAStart); weekBEnd.setDate(weekAStart.getDate() + 12);
-      periods.push(fmtDate(weekAStart) + ' – ' + fmtDate(weekBEnd));
+      const start = new Date(base);
+      start.setDate(base.getDate() + i * CORTE_DAYS);
+      const end = new Date(start);
+      end.setDate(start.getDate() + (CORTE_DAYS - 1));
+      periods.push(fmtDate(start) + ' – ' + fmtDate(end));
     }
     return periods;
   }
@@ -582,10 +746,26 @@
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('view-' + btn.dataset.view).classList.add('active');
+      if (btn.dataset.view === 'cortes') renderCortes();
     });
   });
 
   function renderSchedule(){
+    const today = getScheduleTodayInfo();
+    const hint = document.getElementById('sched-today-hint');
+    if (hint) {
+      if (!today.inScheduleYear) {
+        hint.hidden = false;
+        hint.innerHTML = `Hoy es <strong>${escapeHtml(today.label)} ${new Date().getFullYear()}</strong> (fuera del año del cronograma ${SCHEDULE_YEAR}).`;
+      } else if (!today.onGrid) {
+        hint.hidden = false;
+        hint.innerHTML = `Hoy es <strong>${escapeHtml(today.label)}</strong>: no hay columna en el cronograma (solo días laborables lun–sáb).`;
+      } else {
+        hint.hidden = false;
+        hint.innerHTML = `Hoy es <strong>${escapeHtml(today.label)}</strong> — columna resaltada en amarillo.`;
+      }
+    }
+
     // group days by month and by week-group for the header colspans
     const monthGroups = [];
     state.days.forEach((d, i) => {
@@ -608,8 +788,14 @@
     thead.innerHTML = `
       <tr class="month-row"><th class="activity-header" rowspan="4">Actividad</th>${monthGroups.map(g => `<th colspan="${g.count}" class="group-start">${escapeHtml(g.label)}</th>`).join('')}</tr>
       <tr class="semana-row">${weekGroups.map(g => `<th colspan="${g.count}" class="group-start">${g.label}</th>`).join('')}</tr>
-      <tr class="letter-row">${state.days.map(d => `<th class="${d.isGroupStart ? 'group-start' : ''}">${d.letter}</th>`).join('')}</tr>
-      <tr class="num-row">${state.days.map(d => `<th class="${d.isGroupStart ? 'group-start' : ''}">${d.num}</th>`).join('')}</tr>
+      <tr class="letter-row">${state.days.map(d => {
+        const todayCls = today.onGrid && d.id === today.todayId ? ' is-today' : '';
+        return `<th class="${d.isGroupStart ? 'group-start' : ''}${todayCls}">${d.letter}</th>`;
+      }).join('')}</tr>
+      <tr class="num-row">${state.days.map(d => {
+        const todayCls = today.onGrid && d.id === today.todayId ? ' is-today' : '';
+        return `<th class="${d.isGroupStart ? 'group-start' : ''}${todayCls}">${d.num}</th>`;
+      }).join('')}</tr>
     `;
 
     const body = document.getElementById('sched-body');
@@ -618,7 +804,8 @@
         const key = act.id + ':' + d.id;
         const cellState = state.cells[key] || '';
         const icon = cellState === 'done' ? ICONS.check : cellState === 'progress' ? ICONS.half : cellState === 'planned' ? ICONS.dot : '';
-        return `<td class="week-cell ${d.isGroupStart ? 'group-start' : ''}" data-state="${cellState}" data-act="${act.id}" data-day="${d.id}"><span class="week-chip">${icon}</span></td>`;
+        const todayCls = today.onGrid && d.id === today.todayId ? ' is-today' : '';
+        return `<td class="week-cell${todayCls} ${d.isGroupStart ? 'group-start' : ''}" data-state="${cellState}" data-act="${act.id}" data-day="${d.id}"><span class="week-chip">${icon}</span></td>`;
       }).join('');
       return `<tr><td>${escapeHtml(act.name)}</td>${cells}</tr>`;
     }).join('');
@@ -651,13 +838,48 @@
     renderSchedule();
   });
 
+  function sumPeriodQty(item){
+    return item.periodPayments.reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  }
+
+  // Cantidad acumulada: sum of per-corte quantities when any corte is logged, else manual qtyDone
+  function getQtyDone(item){
+    const fromPeriods = sumPeriodQty(item);
+    return fromPeriods > 0 ? fromPeriods : (item.qtyDone || 0);
+  }
+
+  function periodPaidAmount(item, periodIdx){
+    const qty = parseFloat(item.periodPayments[periodIdx]) || 0;
+    return qty * (item.unitPrice || 0);
+  }
+
+  function formatPct(pct){
+    const n = Math.round(pct * 10) / 10;
+    return (Math.abs(n % 1) < 0.05 ? Math.round(n) : n.toFixed(1)) + '%';
+  }
+
+  function progressBarHtml(pct){
+    const over = pct > 100;
+    const safe = Math.max(pct, 0);
+    const main = over ? (100 / safe) * 100 : Math.min(safe, 100);
+    const overflow = over ? ((safe - 100) / safe) * 100 : 0;
+    return `<span class="progress-bar-slot">
+        <span class="progress-track${over ? ' is-over' : ''}">
+          <span class="progress-fill" style="width:${main}%"></span>
+          ${over ? `<span class="progress-overflow" style="width:${overflow}%"></span>` : ''}
+        </span>
+      </span><span class="pct-text${over ? ' over' : ''}">${formatPct(pct)}</span>`;
+  }
+
   function activityTotals(item){
+    const qtyDone = getQtyDone(item);
     const budget = item.unitPrice * item.quantity;
-    const paid = item.qtyDone * item.unitPrice;
-    const pct = item.quantity > 0 ? Math.min(100, (item.qtyDone / item.quantity) * 100) : 0;
-    const estado = pct <= 0 ? 'todo' : pct >= 100 ? 'done' : 'progress';
-    const estadoLabel = pct <= 0 ? 'Sin iniciar' : pct >= 100 ? 'Completado' : 'En progreso';
-    return { budget, paid, remaining: budget - paid, pct, estado, estadoLabel };
+    const paid = qtyDone * item.unitPrice;
+    const pct = item.quantity > 0 ? (qtyDone / item.quantity) * 100 : (qtyDone > 0 ? 100 : 0);
+    const over = pct > 100;
+    const estado = pct <= 0 ? 'todo' : over ? 'over' : pct >= 100 ? 'done' : 'progress';
+    const estadoLabel = pct <= 0 ? 'Sin iniciar' : over ? 'Excede cantidad' : pct >= 100 ? 'Completado' : 'En progreso';
+    return { budget, paid, remaining: budget - paid, pct, over, estado, estadoLabel };
   }
 
   function renderSummary(){
@@ -672,6 +894,135 @@
     document.getElementById('stat-paid').textContent = money(totalPaid);
     document.getElementById('stat-remaining').textContent = money(totalBudget - totalPaid);
     document.getElementById('stat-pct').textContent = Math.round(overallPct) + '%';
+    renderCortes();
+  }
+
+  function renderCortes(){
+    const grid = document.getElementById('corte-stat-grid');
+    const thead = document.getElementById('cortes-thead');
+    const body = document.getElementById('cortes-body');
+    if (!grid || !thead || !body) return;
+
+    const corteTotals = PAYMENT_PERIODS.map((_, i) =>
+      state.budgetItems.reduce((s, item) => s + periodPaidAmount(item, i), 0)
+    );
+    const grandTotal = corteTotals.reduce((s, v) => s + v, 0);
+
+    grid.innerHTML = PAYMENT_PERIODS.map((label, i) => `
+      <div class="corte-stat">
+        <div class="lbl">Corte ${i + 1}</div>
+        <div class="dates">${escapeHtml(label)}</div>
+        <div class="val">${money(corteTotals[i])}</div>
+      </div>
+    `).join('') + `
+      <div class="corte-stat">
+        <div class="lbl">Total</div>
+        <div class="dates">Todos los cortes</div>
+        <div class="val">${money(grandTotal)}</div>
+      </div>
+    `;
+
+    thead.innerHTML = `
+      <tr>
+        <th class="activity-header">Actividad</th>
+        ${PAYMENT_PERIODS.map((label, i) => `
+          <th class="corte-col" title="${escapeAttr(label)}">C${i + 1}<br><span style="font-weight:500;text-transform:none;letter-spacing:0">${escapeHtml(label)}</span></th>
+        `).join('')}
+        <th class="corte-col">Total</th>
+      </tr>
+    `;
+
+    const rows = state.budgetItems.map(item => {
+      let rowTotal = 0;
+      const cells = PAYMENT_PERIODS.map((_, i) => {
+        const amt = periodPaidAmount(item, i);
+        rowTotal += amt;
+        const cls = amt > 0 ? 'corte-amt has-value' : 'corte-amt';
+        const qty = parseFloat(item.periodPayments[i]) || 0;
+        const title = qty > 0
+          ? `${qty} ${unitLabel[item.unit] || item.unit} × ${money(item.unitPrice)}`
+          : '';
+        return `<td class="${cls}" title="${escapeAttr(title)}">${amt > 0 ? money(amt) : '—'}</td>`;
+      }).join('');
+      return `<tr>
+        <td class="name-col">${escapeHtml(item.name)}</td>
+        ${cells}
+        <td class="corte-amt has-value">${rowTotal > 0 ? money(rowTotal) : '—'}</td>
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = rows + `
+      <tr class="totals-row">
+        <td class="name-col">Total por corte</td>
+        ${corteTotals.map(t => `<td class="corte-amt">${money(t)}</td>`).join('')}
+        <td class="corte-amt">${money(grandTotal)}</td>
+      </tr>
+    `;
+  }
+
+  function reorderBudgetItems(fromId, toId){
+    const items = state.budgetItems;
+    let fromIdx = items.findIndex(i => i.id === fromId);
+    let toIdx = items.findIndex(i => i.id === toId);
+    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+    const [moved] = items.splice(fromIdx, 1);
+    if (fromIdx < toIdx) toIdx--;
+    items.splice(toIdx, 0, moved);
+  }
+
+  function setupActivityDragDrop(body){
+    let dragItemId = null;
+
+    body.querySelectorAll('tr.activity-row').forEach(row => {
+      const handle = row.querySelector('.drag-handle');
+      if (!handle) return;
+
+      handle.addEventListener('dragstart', e => {
+        dragItemId = row.dataset.itemId;
+        row.classList.add('dragging');
+        const periodsRow = body.querySelector(`tr.periods-row[data-periods-for="${dragItemId}"]`);
+        if (periodsRow) periodsRow.classList.add('dragging-with-parent');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragItemId);
+      });
+
+      handle.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        body.querySelectorAll('tr.periods-row.dragging-with-parent').forEach(r => r.classList.remove('dragging-with-parent'));
+        body.querySelectorAll('tr.activity-row.drag-over').forEach(r => r.classList.remove('drag-over'));
+        dragItemId = null;
+      });
+    });
+
+    body.querySelectorAll('tr.activity-row').forEach(row => {
+      row.addEventListener('dragover', e => {
+        if (!dragItemId || row.dataset.itemId === dragItemId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        body.querySelectorAll('tr.activity-row.drag-over').forEach(r => {
+          if (r !== row) r.classList.remove('drag-over');
+        });
+        row.classList.add('drag-over');
+      });
+
+      row.addEventListener('dragleave', e => {
+        if (!e.relatedTarget || !row.contains(e.relatedTarget)) {
+          row.classList.remove('drag-over');
+        }
+      });
+
+      row.addEventListener('drop', e => {
+        e.preventDefault();
+        row.classList.remove('drag-over');
+        const fromId = e.dataTransfer.getData('text/plain') || dragItemId;
+        const toId = row.dataset.itemId;
+        if (!fromId || !toId || fromId === toId) return;
+        reorderBudgetItems(fromId, toId);
+        save();
+        renderActivities();
+        renderSummary();
+      });
+    });
   }
 
   function renderActivities(){
@@ -681,7 +1032,14 @@
     state.budgetItems.forEach(item => {
       const t = activityTotals(item);
       const tr = document.createElement('tr');
+      tr.className = 'activity-row';
+      tr.dataset.itemId = item.id;
       tr.innerHTML = `
+        <td class="drag-cell">
+          <button type="button" class="drag-handle" draggable="true" title="Arrastrar para reordenar" aria-label="Arrastrar para reordenar">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="1.4"/><circle cx="15" cy="7" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="17" r="1.4"/><circle cx="15" cy="17" r="1.4"/></svg>
+          </button>
+        </td>
         <td class="name-cell">
           <input type="text" value="${escapeAttr(item.name)}" data-field="name" data-id="${item.id}">
           <button class="expand-toggle" data-toggle="${item.id}">${item.expanded ? '▾ Ocultar cortes' : '▸ Ver cortes'}</button>
@@ -698,13 +1056,10 @@
         <td class="num-cell"><input type="number" min="0" step="any" value="${item.quantity}" data-field="quantity" data-id="${item.id}"></td>
         <td class="num-cell"><input type="number" min="0" step="any" value="${item.unitPrice}" data-field="unitPrice" data-id="${item.id}"></td>
         <td class="num-cell">${money(t.budget)}</td>
-        <td class="num-cell"><input type="number" min="0" step="any" value="${item.qtyDone}" data-field="qtyDone" data-id="${item.id}"></td>
+        <td class="num-cell"><input type="number" min="0" step="any" value="${getQtyDone(item)}" data-field="qtyDone" data-id="${item.id}"></td>
         <td class="num-cell">${money(t.paid)}</td>
-        <td class="num-cell">${money(t.remaining)}</td>
-        <td>
-          <span class="progress-track"><span style="width:${t.pct}%"></span></span>
-          <span class="pct-text">${t.pct.toFixed(0)}%</span>
-        </td>
+        <td class="num-cell${t.remaining < 0 ? ' num-negative' : ''}">${money(t.remaining)}</td>
+        <td class="avance-cell">${progressBarHtml(t.pct)}</td>
         <td><span class="badge ${t.estado}">${t.estadoLabel}</span></td>
         <td class="actions-cell"><button class="btn danger-txt small" data-remove="${item.id}">Eliminar</button></td>
       `;
@@ -713,8 +1068,9 @@
       if (item.expanded) {
         const periodsTr = document.createElement('tr');
         periodsTr.className = 'periods-row';
+        periodsTr.dataset.periodsFor = item.id;
         const td = document.createElement('td');
-        td.colSpan = 11;
+        td.colSpan = 12;
         td.innerHTML = renderPeriodsPanel(item, t);
         periodsTr.appendChild(td);
         body.appendChild(periodsTr);
@@ -757,10 +1113,14 @@
         if (!item) return;
         const idx = parseInt(el.dataset.periodIdx, 10);
         item.periodPayments[idx] = parseFloat(el.value) || 0;
+        item.qtyDone = sumPeriodQty(item);
         save();
         renderActivities();
+        renderSummary();
       });
     });
+
+    setupActivityDragDrop(body);
   }
 
   function renderPeriodsPanel(item, totals){
@@ -770,13 +1130,15 @@
         <input type="number" min="0" step="any" value="${item.periodPayments[i] || 0}" data-period-input data-act="${item.id}" data-period-idx="${i}">
       </div>
     `).join('');
-    const sumPeriods = item.periodPayments.reduce((s, v) => s + (v || 0), 0);
+    const sumPeriods = sumPeriodQty(item);
+    const qtyDone = getQtyDone(item);
+    const unit = unitLabel[item.unit] || item.unit;
 
     return `
       <div class="periods-grid">${fields}</div>
       <p class="periods-summary">
-        Suma de los cortes registrados arriba: <b>${money(sumPeriods)}</b> ·
-        Pagado según cantidad acumulada (${item.qtyDone} ${unitLabel[item.unit] || item.unit} × precio/unidad): <b>${money(totals.paid)}</b>
+        Suma de cantidades en cortes: <b>${sumPeriods} ${unit}</b> (cant. acumulada) ·
+        Total pagado (${qtyDone} ${unit} × precio/unidad): <b>${money(totals.paid)}</b>
       </p>
     `;
   }
@@ -799,6 +1161,7 @@
   renderSchedule();
   renderActivities();
   renderSummary();
+  renderCortes();
 })();
 </script>
 </body>
