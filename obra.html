@@ -124,7 +124,19 @@
   .nav-btn.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
   .nav-btn.active svg { opacity: 1; }
 
-  .sidebar-foot { margin-top: auto; padding: 10px 10px 0; font-size: 11px; color: var(--text-faint); border-top: 1px solid var(--border); }
+  .sidebar-foot {
+    margin-top: auto; padding: 0; font-size: 11px; color: var(--text-faint);
+    border-top: 1px solid var(--border);
+  }
+  .sidebar-section-label {
+    display: block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-faint); padding: 12px 10px 6px;
+  }
+  .nav-group.data-nav { gap: 1px; padding-bottom: 4px; }
+  .sidebar-foot .foot-note {
+    margin: 0; padding: 8px 10px 10px; line-height: 1.45; font-size: 10.5px;
+    border-top: 1px solid var(--border);
+  }
 
   @media (min-width: 861px) {
     .app.sidebar-collapsed .sidebar {
@@ -133,7 +145,8 @@
     .app.sidebar-collapsed .sidebar-head { flex-direction: column; align-items: center; gap: 10px; }
     .app.sidebar-collapsed .brand { padding: 0; justify-content: center; }
     .app.sidebar-collapsed .brand .txt,
-    .app.sidebar-collapsed .sidebar-foot,
+    .app.sidebar-collapsed .sidebar-section-label,
+    .app.sidebar-collapsed .sidebar-foot .foot-note,
     .app.sidebar-collapsed .nav-label { display: none; }
     .app.sidebar-collapsed .nav-btn {
       justify-content: center; padding-left: 8px; padding-right: 8px;
@@ -353,7 +366,25 @@
         <span class="nav-label">Pagos por corte</span>
       </button>
     </div>
-    <div class="sidebar-foot">Guardado automáticamente en este dispositivo.</div>
+    <div class="sidebar-foot">
+      <span class="sidebar-section-label">Respaldo</span>
+      <div class="nav-group data-nav">
+        <button type="button" class="nav-btn" id="export-seed-btn" title="Descargar obra-state.json para publicar en Vercel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          <span class="nav-label">Exportar para la web</span>
+        </button>
+        <button type="button" class="nav-btn" id="import-seed-btn" title="Importar desde un archivo JSON">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21V9M8 13l4-4 4 4"/><path d="M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/></svg>
+          <span class="nav-label">Importar datos</span>
+        </button>
+        <button type="button" class="nav-btn" id="fetch-seed-btn" title="Cargar obra-state.json publicado en este sitio">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+          <span class="nav-label">Cargar copia publicada</span>
+        </button>
+      </div>
+      <p class="foot-note">Datos en este dispositivo. La copia publicada aplica solo si no hay datos locales.</p>
+      <input type="file" id="import-seed-input" accept="application/json,.json" hidden>
+    </div>
   </aside>
 
   <main class="main">
@@ -485,6 +516,8 @@
 (function(){
   const STORAGE_KEY = 'houseBuild_v5';
   const SIDEBAR_COLLAPSED_KEY = 'obra_sidebar_collapsed';
+  const SEED_FILE = 'obra-state.json';
+  const LEGACY_KEYS = ['houseBuild_v4', 'houseBuild_v3', 'houseBuild_v2', 'houseBuild_v1'];
 
   const appEl = document.getElementById('app');
   const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
@@ -679,52 +712,141 @@
     return { scheduleActivities, budgetItems, days, cells };
   }
 
-  function loadState(){
+  function normalizeState(parsed){
+    if (!parsed || typeof parsed !== 'object') return null;
+    const data = parsed.state && typeof parsed.state === 'object' ? parsed.state : parsed;
+    if (!Array.isArray(data.budgetItems) || !Array.isArray(data.scheduleActivities) || !Array.isArray(data.days)) {
+      return null;
+    }
+    data.budgetItems.forEach(item => { item.periodPayments = padPeriods(item.periodPayments); });
+    if (!data.cells || typeof data.cells !== 'object') data.cells = {};
+    return data;
+  }
+
+  function hasAnyLocalSave(){
+    if (localStorage.getItem(STORAGE_KEY)) return true;
+    return LEGACY_KEYS.some(k => localStorage.getItem(k));
+  }
+
+  function loadStateFromStorage(){
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        // safety: pad any shorter period arrays (e.g. from an older save) up to PERIOD_COUNT
-        if (Array.isArray(parsed.budgetItems)) {
-          parsed.budgetItems.forEach(item => { item.periodPayments = padPeriods(item.periodPayments); });
-        }
-        return parsed;
+        const parsed = normalizeState(JSON.parse(raw));
+        if (parsed) return parsed;
       }
-      // Migrate from the previous version, if present: keep schedule progress (day clicks)
-      // and any budget edits the user already made; pad their cortes to PERIOD_COUNT.
-      const old = localStorage.getItem('houseBuild_v4') || localStorage.getItem('houseBuild_v3') || localStorage.getItem('houseBuild_v2') || localStorage.getItem('houseBuild_v1');
-      if (old) {
-        const oldState = JSON.parse(old);
+      const oldKey = LEGACY_KEYS.find(k => localStorage.getItem(k));
+      if (oldKey) {
+        const oldState = JSON.parse(localStorage.getItem(oldKey));
         const fresh = buildDefaultState();
         if (Array.isArray(oldState.budgetItems)) {
           fresh.budgetItems = oldState.budgetItems.map(item => ({ ...item, periodPayments: padPeriods(item.periodPayments) }));
         }
         const oldScheduleActs = Array.isArray(oldState.scheduleActivities) ? oldState.scheduleActivities : oldState.activities;
         if (Array.isArray(oldScheduleActs) && oldState.cells) {
-          // carry over any day-status clicks the user already made, matched by activity name
           fresh.scheduleActivities.forEach(freshAct => {
             const match = oldScheduleActs.find(a => a.name === freshAct.name);
             if (!match) return;
             fresh.days.forEach(d => {
-              const oldKey = match.id + ':' + d.id;
+              const oldKeyCell = match.id + ':' + d.id;
               const newKey = freshAct.id + ':' + d.id;
-              if (oldState.cells[oldKey] && oldState.cells[oldKey] !== 'planned') {
-                fresh.cells[newKey] = oldState.cells[oldKey];
+              if (oldState.cells[oldKeyCell] && oldState.cells[oldKeyCell] !== 'planned') {
+                fresh.cells[newKey] = oldState.cells[oldKeyCell];
               }
             });
           });
         }
         return fresh;
       }
-    } catch(e) { console.error('No se pudo leer el estado guardado', e); }
+    } catch (e) { console.error('No se pudo leer el estado guardado', e); }
     return buildDefaultState();
   }
 
-  let state = loadState();
+  async function fetchPublishedSeed(){
+    try {
+      const res = await fetch(SEED_FILE, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const parsed = await res.json();
+      return normalizeState(parsed);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function buildSeedPayload(){
+    return {
+      format: 'obra-state',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      state: {
+        scheduleActivities: state.scheduleActivities,
+        budgetItems: state.budgetItems,
+        days: state.days,
+        cells: state.cells
+      }
+    };
+  }
+
+  function downloadSeedFile(){
+    const payload = buildSeedPayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = SEED_FILE;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function applyImportedState(next, persist){
+    const normalized = normalizeState(next);
+    if (!normalized) {
+      alert('El archivo no tiene el formato esperado.');
+      return false;
+    }
+    state = normalized;
+    if (persist) save();
+    renderSchedule();
+    renderActivities();
+    renderSummary();
+    return true;
+  }
+
+  let state = buildDefaultState();
 
   function save(){
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     catch(e) { console.error('No se pudo guardar el estado', e); }
+  }
+
+  async function bootApp(){
+    if (hasAnyLocalSave()) {
+      state = loadStateFromStorage();
+    } else {
+      const seed = await fetchPublishedSeed();
+      if (seed) {
+        state = seed;
+        save();
+      } else {
+        state = loadStateFromStorage();
+      }
+    }
+
+    const params = new URLSearchParams(location.search);
+    if (params.get('publishSeed') === '1') {
+      if (hasAnyLocalSave()) {
+        downloadSeedFile();
+        alert('Se descargó ' + SEED_FILE + '. Colócalo en la carpeta del proyecto (junto a obra.html) y vuelve a desplegar en Vercel. Tus datos locales no se modificaron.');
+      } else {
+        alert('No hay datos guardados en este navegador para exportar.');
+      }
+      if (history.replaceState) history.replaceState(null, '', location.pathname + location.hash);
+    }
+
+    renderSchedule();
+    renderActivities();
+    renderSummary();
+    renderCortes();
   }
 
   function money(n){
@@ -1158,10 +1280,43 @@
   }
   function escapeAttr(s){ return escapeHtml(s); }
 
-  renderSchedule();
-  renderActivities();
-  renderSummary();
-  renderCortes();
+  document.getElementById('export-seed-btn').addEventListener('click', () => {
+    downloadSeedFile();
+    alert('Archivo ' + SEED_FILE + ' descargado. Súbelo al proyecto y redespliega para que la versión en línea lo use en dispositivos nuevos.');
+  });
+
+  document.getElementById('import-seed-btn').addEventListener('click', () => {
+    document.getElementById('import-seed-input').click();
+  });
+
+  document.getElementById('import-seed-input').addEventListener('change', e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (!confirm('¿Reemplazar los datos de este dispositivo con el archivo importado?')) return;
+        if (applyImportedState(parsed, true)) alert('Datos importados correctamente.');
+      } catch (err) {
+        alert('No se pudo leer el archivo JSON.');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('fetch-seed-btn').addEventListener('click', async () => {
+    const seed = await fetchPublishedSeed();
+    if (!seed) {
+      alert('No se encontró ' + SEED_FILE + ' en este sitio. Primero exporta desde tu copia local y redespliega.');
+      return;
+    }
+    if (!confirm('¿Reemplazar los datos de este dispositivo con la copia publicada?')) return;
+    if (applyImportedState(seed, true)) alert('Copia publicada cargada.');
+  });
+
+  bootApp();
 })();
 </script>
 </body>
