@@ -234,6 +234,8 @@
   .pct-text { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-soft); font-weight: 600; vertical-align: middle; }
   .pct-text.over { color: var(--danger); font-weight: 700; }
   .num-cell.num-negative { color: var(--danger); font-weight: 600; }
+  .num-cell.reconcile-over { color: var(--danger); font-weight: 600; }
+  .num-cell.reconcile-credit { color: var(--done-fg); font-weight: 600; }
   .badge.over { background: var(--danger-soft); color: var(--danger); }
 
   .entries-row > td { background: var(--surface-2); padding: 16px; }
@@ -495,6 +497,8 @@
                 <th>Saldo</th>
                 <th class="avance-cell">Avance %</th>
                 <th>Estado</th>
+                <th>Cant. medida</th>
+                <th>Exceso cobrado</th>
                 <th></th>
               </tr>
             </thead>
@@ -792,7 +796,10 @@
     if (!Array.isArray(data.budgetItems) || !Array.isArray(data.scheduleActivities) || !Array.isArray(data.days)) {
       return null;
     }
-    data.budgetItems.forEach(item => { item.periodPayments = padPeriods(item.periodPayments); });
+    data.budgetItems.forEach(item => {
+      item.periodPayments = padPeriods(item.periodPayments);
+      if (item.measuredQty === undefined) item.measuredQty = null;
+    });
     if (!data.cells || typeof data.cells !== 'object') data.cells = {};
     return data;
   }
@@ -850,8 +857,9 @@
   function buildSeedPayload(){
     return {
       format: 'obra-state',
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
+      includes: ['actividades', 'cortes', 'cronograma', 'mediciones'],
       state: {
         scheduleActivities: state.scheduleActivities,
         budgetItems: state.budgetItems,
@@ -861,15 +869,69 @@
     };
   }
 
-  function downloadSeedFile(){
-    const payload = buildSeedPayload();
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  function csvCell(value){
+    const s = value === null || value === undefined ? '' : String(value);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function buildExportCsv(){
+    const lines = [];
+    lines.push('ACTIVIDADES Y PRESUPUESTO');
+    lines.push([
+      'Actividad', 'Unidad', 'Cant. total', 'Precio/unidad', 'Cant. acumulada', 'Cant. medida',
+      'Diferencia cant.', 'Exceso cobrado', 'Total pagado', 'Saldo contrato', 'Avance %'
+    ].map(csvCell).join(','));
+    state.budgetItems.forEach(item => {
+      const t = activityTotals(item);
+      const billed = getQtyDone(item);
+      const measured = getMeasuredQty(item);
+      const qtyDiff = measured === null ? '' : billed - measured;
+      const excess = reconcileExtraCost(item);
+      lines.push([
+        item.name, item.unit, item.quantity, item.unitPrice, billed,
+        measured === null ? '' : measured, qtyDiff,
+        excess === null ? '' : Math.round(excess),
+        Math.round(t.paid), Math.round(t.remaining), Math.round(t.pct)
+      ].map(csvCell).join(','));
+    });
+    lines.push('');
+    lines.push('CORTES (cantidad por periodo × precio = pago)');
+    lines.push(['Actividad', ...PAYMENT_PERIODS.map((_, i) => 'Corte ' + (i + 1)), 'Total pagado'].map(csvCell).join(','));
+    state.budgetItems.forEach(item => {
+      let rowTotal = 0;
+      const cortes = PAYMENT_PERIODS.map((_, i) => {
+        const qty = parseFloat(item.periodPayments[i]) || 0;
+        rowTotal += qty * (item.unitPrice || 0);
+        return qty;
+      });
+      lines.push([item.name, ...cortes, Math.round(rowTotal)].map(csvCell).join(','));
+    });
+    lines.push('');
+    lines.push('CRONOGRAMA');
+    const dayHeaders = state.days.map(d => d.id);
+    lines.push(['Actividad', ...dayHeaders].map(csvCell).join(','));
+    state.scheduleActivities.forEach(act => {
+      const row = [act.name, ...state.days.map(d => state.cells[act.id + ':' + d.id] || '')];
+      lines.push(row.map(csvCell).join(','));
+    });
+    return lines.join('\n');
+  }
+
+  function triggerDownload(filename, content, mime){
+    const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = SEED_FILE;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function downloadSeedFile(){
+    const payload = buildSeedPayload();
+    triggerDownload(SEED_FILE, JSON.stringify(payload, null, 2), 'application/json');
+    triggerDownload('obra-export.csv', buildExportCsv(), 'text/csv;charset=utf-8');
   }
 
   function applyImportedState(next, persist){
@@ -910,7 +972,7 @@
     if (params.get('publishSeed') === '1') {
       if (hasAnyLocalSave()) {
         downloadSeedFile();
-        alert('Se descargó ' + SEED_FILE + '. Colócalo en la carpeta del proyecto (junto a obra.html) y vuelve a desplegar en Vercel. Tus datos locales no se modificaron.');
+        alert('Se descargaron ' + SEED_FILE + ' y obra-export.csv. Coloca el JSON en la carpeta del proyecto y redespliega. Tus datos locales no se modificaron.');
       } else {
         alert('No hay datos guardados en este navegador para exportar.');
       }
@@ -1041,6 +1103,30 @@
   function getQtyDone(item){
     const fromPeriods = sumPeriodQty(item);
     return fromPeriods > 0 ? fromPeriods : (item.qtyDone || 0);
+  }
+
+  function getMeasuredQty(item){
+    if (item.measuredQty === null || item.measuredQty === undefined || item.measuredQty === '') return null;
+    const v = parseFloat(item.measuredQty);
+    return isNaN(v) ? null : v;
+  }
+
+  /** Positive = billed for more than measured (extra charge). */
+  function reconcileExtraCost(item){
+    const measured = getMeasuredQty(item);
+    if (measured === null) return null;
+    return (getQtyDone(item) - measured) * (item.unitPrice || 0);
+  }
+
+  function formatReconcileCell(item){
+    const excess = reconcileExtraCost(item);
+    if (excess === null) return { html: '—', cls: '' };
+    if (excess === 0) return { html: money(0), cls: '' };
+    const billed = getQtyDone(item);
+    const measured = getMeasuredQty(item);
+    const title = `${billed} − ${measured} ${unitLabel[item.unit] || item.unit} × ${money(item.unitPrice)}`;
+    const cls = excess > 0 ? 'reconcile-over' : 'reconcile-credit';
+    return { html: money(excess), cls, title };
   }
 
   function periodPaidAmount(item, periodIdx){
@@ -1226,6 +1312,7 @@
 
     state.budgetItems.forEach(item => {
       const t = activityTotals(item);
+      const recon = formatReconcileCell(item);
       const tr = document.createElement('tr');
       tr.className = 'activity-row';
       tr.dataset.itemId = item.id;
@@ -1256,6 +1343,8 @@
         <td class="num-cell${t.remaining < 0 ? ' num-negative' : ''}">${money(t.remaining)}</td>
         <td class="avance-cell">${progressBarHtml(t.pct)}</td>
         <td><span class="badge ${t.estado}">${t.estadoLabel}</span></td>
+        <td class="num-cell"><input type="number" min="0" step="any" value="${item.measuredQty != null && item.measuredQty !== '' ? item.measuredQty : ''}" placeholder="—" data-field="measuredQty" data-id="${item.id}"></td>
+        <td class="num-cell ${recon.cls}" title="${escapeAttr(recon.title || '')}">${recon.html}</td>
         <td class="actions-cell"><button class="btn danger-txt small" data-remove="${item.id}">Eliminar</button></td>
       `;
       body.appendChild(tr);
@@ -1265,7 +1354,7 @@
         periodsTr.className = 'periods-row';
         periodsTr.dataset.periodsFor = item.id;
         const td = document.createElement('td');
-        td.colSpan = 12;
+        td.colSpan = 14;
         td.innerHTML = renderPeriodsPanel(item, t);
         periodsTr.appendChild(td);
         body.appendChild(periodsTr);
@@ -1277,7 +1366,13 @@
         const item = state.budgetItems.find(a => a.id === el.dataset.id);
         if (!item) return;
         const field = el.dataset.field;
-        item[field] = (field === 'unitPrice' || field === 'quantity' || field === 'qtyDone') ? (parseFloat(el.value) || 0) : el.value;
+        if (field === 'measuredQty') {
+          item.measuredQty = el.value === '' ? null : (parseFloat(el.value) || 0);
+        } else if (field === 'unitPrice' || field === 'quantity' || field === 'qtyDone') {
+          item[field] = parseFloat(el.value) || 0;
+        } else {
+          item[field] = el.value;
+        }
         save();
         renderActivities();
         renderSummary();
@@ -1341,7 +1436,7 @@
   document.getElementById('add-activity-btn').addEventListener('click', () => {
     state.budgetItems.push({
       id: uid(), name: 'Nueva actividad', unit: 'm2', unitPrice: 0, quantity: 0,
-      qtyDone: 0, periodPayments: new Array(PERIOD_COUNT).fill(0), expanded: true
+      qtyDone: 0, measuredQty: null, periodPayments: new Array(PERIOD_COUNT).fill(0), expanded: true
     });
     save();
     renderActivities();
@@ -1355,7 +1450,7 @@
 
   document.getElementById('export-seed-btn').addEventListener('click', () => {
     downloadSeedFile();
-    alert('Archivo ' + SEED_FILE + ' descargado. Súbelo al proyecto y redespliega para que la versión en línea lo use en dispositivos nuevos.');
+    alert('Descargados ' + SEED_FILE + ' (todo: actividades, cortes, cronograma, mediciones) y obra-export.csv. Sube el JSON al proyecto y redespliega para la versión en línea.');
   });
 
   document.getElementById('import-seed-btn').addEventListener('click', () => {
