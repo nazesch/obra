@@ -281,6 +281,15 @@
     box-shadow: inset 0 0 0 2px var(--primary);
   }
   .sched-table thead th.activity-header, .sched-table tbody td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; font-weight: 500; min-width: 190px; }
+  .sched-table tbody td:first-child { padding: 4px 8px; }
+  .sched-act-name {
+    font-family: inherit; font-size: 13px; font-weight: 500; color: var(--text);
+    border: 1px solid transparent; background: transparent; border-radius: 6px;
+    padding: 6px 8px; width: 100%; min-width: 160px;
+  }
+  .sched-act-name:hover { border-color: var(--border); background: var(--surface); }
+  .sched-act-name:focus { border-color: var(--primary); background: var(--surface); outline: none; }
+  .topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .sched-table thead th.activity-header { background: var(--surface-2); z-index: 3; }
   .sched-table thead th { text-align: center; }
   .sched-table thead tr.month-row th, .sched-table thead tr.semana-row th { font-size: 10.5px; padding: 5px 4px; }
@@ -395,10 +404,16 @@
           <h1>Cronograma</h1>
           <p>Precargado desde el cronograma original (14 sep – 21 nov). Haz clic en un día para pasarlo de planeado a en progreso o terminado.</p>
         </div>
-        <button class="btn" id="add-day-btn">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Agregar día
-        </button>
+        <div class="topbar-actions">
+          <button class="btn" id="add-sched-act-btn" type="button">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            Agregar actividad
+          </button>
+          <button class="btn" id="add-week-btn" type="button">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
+            Agregar semana
+          </button>
+        </div>
       </div>
 
       <div class="card">
@@ -573,6 +588,65 @@
   const SCHEDULE_YEAR = 2026;
   const DAY_ID_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const DAY_LABEL_MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const MONTH_ES = {
+    Jan:'Enero', Feb:'Febrero', Mar:'Marzo', Apr:'Abril', May:'Mayo', Jun:'Junio',
+    Jul:'Julio', Aug:'Agosto', Sep:'Septiembre', Oct:'Octubre', Nov:'Noviembre', Dec:'Diciembre'
+  };
+  const MONTH_NUM = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+
+  function dateFromDay(day){
+    return new Date(SCHEDULE_YEAR, MONTH_NUM[day.month], day.num);
+  }
+
+  function weekdayLetterFromDate(date){
+    const dow = date.getDay();
+    if (dow === 0) return 'D';
+    return WEEKDAY_LETTERS[dow - 1];
+  }
+
+  function formatWeekRange(days){
+    const first = days[0];
+    const last = days[days.length - 1];
+    if (first.month === last.month) return `${first.month} ${first.num}–${last.num}`;
+    return `${first.month} ${first.num}–${last.month} ${last.num}`;
+  }
+
+  function weekHeaderLabel(groupIndex, days){
+    const g = WEEK_GROUPS[groupIndex];
+    if (g) return g.semana + '<br>' + g.range;
+    return 'Semana<br>' + escapeHtml(formatWeekRange(days));
+  }
+
+  function addNextScheduleWeek(){
+    if (!state.days.length) return;
+    const last = state.days[state.days.length - 1];
+    const newGroupIndex = last.groupIndex + 1;
+    const cursor = dateFromDay(last);
+    cursor.setDate(cursor.getDate() + 1);
+    while (cursor.getDay() === 0) cursor.setDate(cursor.getDate() + 1);
+
+    const newDays = [];
+    for (let i = 0; i < 6; i++) {
+      while (cursor.getDay() === 0) cursor.setDate(cursor.getDate() + 1);
+      const month = DAY_ID_MONTHS[cursor.getMonth()];
+      const num = cursor.getDate();
+      const id = month + num;
+      if (state.days.some(d => d.id === id) || newDays.some(d => d.id === id)) {
+        alert('La siguiente semana ya está en el cronograma.');
+        return;
+      }
+      newDays.push({
+        id, month, num,
+        letter: weekdayLetterFromDate(cursor),
+        groupIndex: newGroupIndex,
+        isGroupStart: i === 0
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    state.days.push(...newDays);
+    save();
+    renderSchedule();
+  }
 
   function getScheduleTodayInfo(){
     const now = new Date();
@@ -876,40 +950,34 @@
     const today = getScheduleTodayInfo();
     const hint = document.getElementById('sched-today-hint');
     if (hint) {
-      if (!today.inScheduleYear) {
-        hint.hidden = false;
-        hint.innerHTML = `Hoy es <strong>${escapeHtml(today.label)} ${new Date().getFullYear()}</strong> (fuera del año del cronograma ${SCHEDULE_YEAR}).`;
-      } else if (!today.onGrid) {
-        hint.hidden = false;
-        hint.innerHTML = `Hoy es <strong>${escapeHtml(today.label)}</strong>: no hay columna en el cronograma (solo días laborables lun–sáb).`;
-      } else {
+      if (today.onGrid) {
         hint.hidden = false;
         hint.innerHTML = `Hoy es <strong>${escapeHtml(today.label)}</strong> — columna resaltada en amarillo.`;
+      } else {
+        hint.hidden = true;
+        hint.innerHTML = '';
       }
     }
 
     // group days by month and by week-group for the header colspans
     const monthGroups = [];
-    state.days.forEach((d, i) => {
+    state.days.forEach((d) => {
       const last = monthGroups[monthGroups.length - 1];
-      const groupLabel = WEEK_GROUPS[d.groupIndex] ? WEEK_GROUPS[d.groupIndex].month : 'Extra';
+      const groupLabel = MONTH_ES[d.month] || d.month;
       if (last && last.label === groupLabel) last.count++;
       else monthGroups.push({ label: groupLabel, count: 1 });
     });
     const weekGroups = [];
     state.days.forEach((d) => {
       const last = weekGroups[weekGroups.length - 1];
-      const g = WEEK_GROUPS[d.groupIndex];
-      const label = g ? (g.semana + '<br>' + g.range) : 'Extra';
-      const key = d.groupIndex + ':' + label;
-      if (last && last.key === key) last.count++;
-      else weekGroups.push({ key, label, count: 1 });
+      if (last && last.groupIndex === d.groupIndex) last.days.push(d);
+      else weekGroups.push({ groupIndex: d.groupIndex, days: [d] });
     });
 
     const thead = document.getElementById('sched-thead');
     thead.innerHTML = `
       <tr class="month-row"><th class="activity-header" rowspan="4">Actividad</th>${monthGroups.map(g => `<th colspan="${g.count}" class="group-start">${escapeHtml(g.label)}</th>`).join('')}</tr>
-      <tr class="semana-row">${weekGroups.map(g => `<th colspan="${g.count}" class="group-start">${g.label}</th>`).join('')}</tr>
+      <tr class="semana-row">${weekGroups.map(g => `<th colspan="${g.days.length}" class="group-start">${weekHeaderLabel(g.groupIndex, g.days)}</th>`).join('')}</tr>
       <tr class="letter-row">${state.days.map(d => {
         const todayCls = today.onGrid && d.id === today.todayId ? ' is-today' : '';
         return `<th class="${d.isGroupStart ? 'group-start' : ''}${todayCls}">${d.letter}</th>`;
@@ -929,8 +997,17 @@
         const todayCls = today.onGrid && d.id === today.todayId ? ' is-today' : '';
         return `<td class="week-cell${todayCls} ${d.isGroupStart ? 'group-start' : ''}" data-state="${cellState}" data-act="${act.id}" data-day="${d.id}"><span class="week-chip">${icon}</span></td>`;
       }).join('');
-      return `<tr><td>${escapeHtml(act.name)}</td>${cells}</tr>`;
+      return `<tr><td><input type="text" class="sched-act-name" value="${escapeAttr(act.name)}" data-sched-act="${act.id}" aria-label="Nombre de actividad"></td>${cells}</tr>`;
     }).join('');
+
+    body.querySelectorAll('.sched-act-name').forEach(input => {
+      input.addEventListener('change', () => {
+        const act = state.scheduleActivities.find(a => a.id === input.dataset.schedAct);
+        if (!act) return;
+        act.name = input.value.trim() || 'Nueva actividad';
+        save();
+      });
+    });
 
     body.querySelectorAll('.week-cell').forEach(cell => {
       cell.addEventListener('click', () => {
@@ -946,18 +1023,14 @@
     });
   }
 
-  document.getElementById('add-day-btn').addEventListener('click', () => {
-    const month = prompt('Mes del nuevo día (ej: "Nov")');
-    if (!month) return;
-    const numStr = prompt('Número del día (ej: 24)');
-    const num = parseInt(numStr, 10);
-    if (!numStr || isNaN(num)) return;
-    const newId = month + num;
-    if (state.days.some(d => d.id === newId)) { alert('Ese día ya existe en el cronograma.'); return; }
-    const lastGroupIndex = state.days.length ? state.days[state.days.length - 1].groupIndex : 0;
-    state.days.push({ id: newId, month, num, letter: '', groupIndex: lastGroupIndex + 1, isGroupStart: true });
+  document.getElementById('add-sched-act-btn').addEventListener('click', () => {
+    state.scheduleActivities.push({ id: uid(), name: 'Nueva actividad' });
     save();
     renderSchedule();
+  });
+
+  document.getElementById('add-week-btn').addEventListener('click', () => {
+    addNextScheduleWeek();
   });
 
   function sumPeriodQty(item){
