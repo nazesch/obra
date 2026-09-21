@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Obra — Control de construcción</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F5F7;
+    --surface: #FFFFFF;
+    --surface-2: #FAFAFB;
+    --border: #E4E6EA;
+    --border-strong: #D2D5DB;
+    --text: #16181D;
+    --text-soft: #6B7078;
+    --text-faint: #9CA1AB;
+    --primary: #2F6FED;
+    --primary-hover: #2559C7;
+    --primary-soft: #E9F0FE;
+    --danger: #E0393E;
+    --danger-soft: #FCEAEA;
+    --todo-bg: #ECEDF0; --todo-fg: #7C818A;
+    --planned-bg: #DCE9FE; --planned-fg: #2F6FED;
+    --progress-bg: #FEF0D6; --progress-fg: #B27600;
+    --done-bg: #DDF3E4; --done-fg: #1E8A4C;
+    color-scheme: light;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181B;
+      --surface: #1E1F23;
+      --surface-2: #232428;
+      --border: #303236;
+      --border-strong: #3D3F44;
+      --text: #EDEEF0;
+      --text-soft: #9BA0A8;
+      --text-faint: #6E727A;
+      --primary: #5C8DFF;
+      --primary-hover: #7BA1FF;
+      --primary-soft: #1E2A44;
+      --danger: #F0605F;
+      --danger-soft: #3A2323;
+      --todo-bg: #2B2C30; --todo-fg: #9BA0A8;
+      --planned-bg: #1E2A44; --planned-fg: #7BA1FF;
+      --progress-bg: #3B3120; --progress-fg: #E0AA4E;
+      --done-bg: #1E3327; --done-fg: #52C285;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181B; --surface: #1E1F23; --surface-2: #232428;
+    --border: #303236; --border-strong: #3D3F44;
+    --text: #EDEEF0; --text-soft: #9BA0A8; --text-faint: #6E727A;
+    --primary: #5C8DFF; --primary-hover: #7BA1FF; --primary-soft: #1E2A44;
+    --danger: #F0605F; --danger-soft: #3A2323;
+    --todo-bg: #2B2C30; --todo-fg: #9BA0A8;
+    --planned-bg: #1E2A44; --planned-fg: #7BA1FF;
+    --progress-bg: #3B3120; --progress-fg: #E0AA4E;
+    --done-bg: #1E3327; --done-fg: #52C285;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  svg { display: block; }
+
+  .app { display: flex; min-height: 100dvh; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    width: 232px; flex: 0 0 232px;
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 18px 12px;
+    padding-top: calc(18px + env(safe-area-inset-top, 0px));
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; padding: 0 8px; }
+  .brand .mark {
+    width: 26px; height: 26px; border-radius: 7px; background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0;
+  }
+  .brand .txt { min-width: 0; }
+  .brand .txt .l1 { font-weight: 700; font-size: 13.5px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand .txt .l2 { font-size: 11.5px; color: var(--text-faint); white-space: nowrap; }
+
+  .nav-group { display: flex; flex-direction: column; gap: 1px; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+    background: none; border: none; cursor: pointer; padding: 8px 10px; border-radius: 6px;
+    font-family: inherit; font-size: 13.5px; font-weight: 500; color: var(--text-soft);
+  }
+  .nav-btn svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.85; }
+  .nav-btn:hover { background: var(--surface-2); color: var(--text); }
+  .nav-btn.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+  .nav-btn.active svg { opacity: 1; }
+
+  .sidebar-foot { margin-top: auto; padding: 10px 10px 0; font-size: 11px; color: var(--text-faint); border-top: 1px solid var(--border); }
+
+  /* ---------- Main ---------- */
+  .main { flex: 1 1 auto; min-width: 0; padding: 24px 28px 80px; padding-top: calc(24px + env(safe-area-inset-top, 0px)); }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .topbar h1 { font-size: 19px; font-weight: 700; margin: 0 0 3px; letter-spacing: -0.01em; }
+  .topbar p { margin: 0; font-size: 13px; color: var(--text-soft); max-width: 560px; }
+
+  .btn {
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    border-radius: 7px; padding: 7px 13px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btn.small { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+  .btn.danger-txt { background: transparent; border-color: transparent; color: var(--danger); }
+  .btn.danger-txt:hover { background: var(--danger-soft); }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 22px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 13px 15px; }
+  .stat-card .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .stat-card .label { font-size: 11.5px; color: var(--text-soft); font-weight: 600; }
+  .stat-card .icon { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .stat-card .icon svg { width: 13px; height: 13px; }
+  .stat-card .value { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
+  .icon.blue { background: var(--planned-bg); color: var(--planned-fg); }
+  .icon.green { background: var(--done-bg); color: var(--done-fg); }
+  .icon.amber { background: var(--progress-bg); color: var(--progress-fg); }
+  .icon.gray { background: var(--todo-bg); color: var(--todo-fg); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; }
+  thead th {
+    text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-faint); background: var(--surface-2);
+    padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 13px; }
+  tbody tr:last-child > td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+
+  input[type=text], input[type=number], input[type=date], select {
+    font-family: inherit; font-size: 13px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 8px; width: 100%; min-width: 64px;
+  }
+  input[type=text]:hover, input[type=number]:hover, select:hover { border-color: var(--border-strong); }
+  .name-cell input { min-width: 150px; font-weight: 500; }
+  .num-cell input { text-align: right; min-width: 76px; }
+
+  .expand-toggle { background: none; border: none; cursor: pointer; color: var(--primary); font-size: 11.5px; font-weight: 600; padding: 3px 0 0; text-align: left; display: block; }
+  .expand-toggle:hover { text-decoration: underline; }
+
+  .progress-track { width: 84px; height: 6px; background: var(--todo-bg); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 7px; }
+  .progress-track > span { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
+  .pct-text { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-soft); font-weight: 600; }
+
+  .entries-row > td { background: var(--surface-2); padding: 16px; }
+  .entries-wrap { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .entries-list { flex: 1 1 320px; }
+  .entries-list table { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .entries-list thead th { background: var(--surface); }
+  .entries-list td, .entries-list th { padding: 7px 10px; }
+  .entries-summary { font-size: 12px; color: var(--text-soft); margin-top: 9px; }
+  .entries-summary b { color: var(--text); }
+
+  .add-entry-form { flex: 0 0 210px; border-left: 1px solid var(--border); padding-left: 18px; }
+  .add-entry-form .ttl { margin: 0 0 2px; font-weight: 700; font-size: 12.5px; }
+  .add-entry-form label { display: block; font-size: 11.5px; color: var(--text-soft); font-weight: 600; margin: 9px 0 3px; }
+  .add-entry-form label:first-of-type { margin-top: 8px; }
+
+  .actions-cell { white-space: nowrap; text-align: right; }
+
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-soft); font-weight: 500; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  .sched-table thead th.activity-header, .sched-table tbody td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; font-weight: 500; min-width: 190px; }
+  .sched-table thead th.activity-header { background: var(--surface-2); z-index: 3; }
+  .sched-table thead th { text-align: center; }
+  .sched-table thead tr.month-row th, .sched-table thead tr.semana-row th { font-size: 10.5px; padding: 5px 4px; }
+  .sched-table thead tr.letter-row th, .sched-table thead tr.num-row th { font-size: 10.5px; padding: 4px 2px; }
+  .sched-table thead tr.semana-row th { font-weight: 600; color: var(--text); line-height: 1.3; }
+  .week-cell { width: 28px; padding: 4px !important; text-align: center; cursor: pointer; border-left: 1px solid var(--border); }
+  .week-cell.group-start { border-left: 1.5px solid var(--border-strong); }
+  .week-chip { width: 18px; height: 18px; border-radius: 5px; margin: 0 auto; display: flex; align-items: center; justify-content: center; background: var(--todo-bg); }
+  .week-chip svg { width: 10px; height: 10px; }
+  .week-cell[data-state="planned"] .week-chip { background: var(--planned-bg); color: var(--planned-fg); }
+  .week-cell[data-state="progress"] .week-chip { background: var(--progress-bg); color: var(--progress-fg); }
+  .week-cell[data-state="done"] .week-chip { background: var(--done-bg); color: var(--done-fg); }
+  th.group-start { border-left: 1.5px solid var(--border-strong); }
+
+  .note-box { margin: 14px 0 0; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-soft); line-height: 1.7; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .badge.todo { background: var(--todo-bg); color: var(--todo-fg); }
+  .badge.progress { background: var(--progress-bg); color: var(--progress-fg); }
+  .badge.done { background: var(--done-bg); color: var(--done-fg); }
+
+  .periods-row > td { background: var(--surface-2); padding: 16px; }
+  .periods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .period-field label { display: block; font-size: 11px; color: var(--text-soft); font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
+  .period-field input { text-align: right; }
+  .periods-summary { font-size: 12px; color: var(--text-soft); margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }
+  .periods-summary b { color: var(--text); }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; flex: 0 0 auto; flex-direction: row; align-items: center; overflow-x: auto; gap: 10px; padding: 12px; }
+    .brand { flex-shrink: 0; }
+    .nav-group { flex-direction: row; }
+    .sidebar-foot { display: none; }
+    .main { padding: 18px 16px 60px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">C</div>
+      <div class="txt">
+        <div class="l1">Control de obra</div>
+        <div class="l2">Casa · cortes quincenales</div>
+      </div>
+    </div>
+    <div class="nav-group">
+      <button class="nav-btn active" data-view="cronograma">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
+        Cronograma
+      </button>
+      <button class="nav-btn" data-view="actividades">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        Actividades y presupuesto
+      </button>
+    </div>
+    <div class="sidebar-foot">Guardado automáticamente en este dispositivo.</div>
+  </aside>
+
+  <main class="main">
+
+    <section class="view active" id="view-cronograma">
+      <div class="topbar">
+        <div>
+          <h1>Cronograma</h1>
+          <p>Precargado desde el cronograma original (14 sep – 21 nov). Haz clic en un día para pasarlo de planeado a en progreso o terminado.</p>
+        </div>
+        <button class="btn" id="add-day-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar día
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="legend">
+          <span><i style="background:var(--todo-bg)"></i>Sin iniciar</span>
+          <span><i style="background:var(--planned-bg)"></i>Planeada (según cronograma)</span>
+          <span><i style="background:var(--progress-bg)"></i>En progreso</span>
+          <span><i style="background:var(--done-bg)"></i>Terminada</span>
+        </div>
+        <div class="table-scroll">
+          <table class="sched-table">
+            <thead id="sched-thead"></thead>
+            <tbody id="sched-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="note-box">
+        Sin actividades de cubierta y cielo raso durante ~5 días mientras se espera el resto del caballete de las maderas.<br>
+        Trabajos en altura de bajo rendimiento: pañete interior y exterior, cubierta, redoblón, cielo raso, acabados.<br>
+        La plantilla pulida se termina al final de la obra; por su complejidad requiere al menos tres semanas.
+      </div>
+    </section>
+
+    <section class="view" id="view-actividades">
+      <div class="topbar">
+        <div>
+          <h1>Actividades y presupuesto</h1>
+          <p>Datos importados de tu tracker (CSV). Cada actividad tiene 15 cortes quincenales fijos, alineados con el cronograma; haz clic en "Ver cortes" para registrar el pago de cada uno.</p>
+        </div>
+        <button class="btn primary" id="add-activity-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar actividad
+        </button>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="top"><span class="label">Total contrato</span><span class="icon gray">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+          </span></div>
+          <div class="value" id="stat-total">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="top"><span class="label">Total pagado</span><span class="icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </span></div>
+          <div class="value" id="stat-paid">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="top"><span class="label">Saldo</span><span class="icon amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+          </span></div>
+          <div class="value" id="stat-remaining">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="top"><span class="label">Avance %</span><span class="icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 17l6-6 4 4 8-8"/></svg>
+          </span></div>
+          <div class="value" id="stat-pct">0%</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="min-width:200px">Actividad</th>
+                <th>Unidad</th>
+                <th>Cant. total</th>
+                <th>Precio/unidad</th>
+                <th>Total contrato</th>
+                <th>Cant. acumulada</th>
+                <th>Total pagado</th>
+                <th>Saldo</th>
+                <th>Avance %</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="activities-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'houseBuild_v5';
+
+  const DEFAULT_ACTIVITIES = [
+    'Inst. eléctricas','Inst. hidráulicas','Inst. sanitarias','Inst. aguas lluvias',
+    'Viga superior - machones','Pañete interior','Pañete exterior','Relleno zona piscina',
+    'Andén','Poza séptica','Cubierta','Redoblón','Molduras cubierta','Cielo raso',
+    'Acabado muros interiores','Acabado muros exteriores','Impermeabilización viga canal',
+    'Carpintería metálica','Carpintería madera','Terminación plantilla'
+  ];
+
+  // Week groups exactly as laid out in the original PDF schedule (Sep 14 – Nov 21).
+  // Note: the "Semana 4" group of Septiembre crosses into October (28,29,30,1,2,3),
+  // matching how the original document grouped it under the "Septiembre" column.
+  const WEEK_GROUPS = [
+    { month: 'Septiembre', semana: 'Semana 2', range: 'Sep 14–19', days: [['Sep',14],['Sep',15],['Sep',16],['Sep',17],['Sep',18],['Sep',19]] },
+    { month: 'Septiembre', semana: 'Semana 3', range: 'Sep 21–26', days: [['Sep',21],['Sep',22],['Sep',23],['Sep',24],['Sep',25],['Sep',26]] },
+    { month: 'Septiembre', semana: 'Semana 4', range: 'Sep 28–30 / Oct 1–3', days: [['Sep',28],['Sep',29],['Sep',30],['Oct',1],['Oct',2],['Oct',3]] },
+    { month: 'Octubre', semana: 'Semana 1', range: 'Oct 5–10', days: [['Oct',5],['Oct',6],['Oct',7],['Oct',8],['Oct',9],['Oct',10]] },
+    { month: 'Octubre', semana: 'Semana 2', range: 'Oct 12–17', days: [['Oct',12],['Oct',13],['Oct',14],['Oct',15],['Oct',16],['Oct',17]] },
+    { month: 'Octubre', semana: 'Semana 3', range: 'Oct 19–24', days: [['Oct',19],['Oct',20],['Oct',21],['Oct',22],['Oct',23],['Oct',24]] },
+    { month: 'Octubre', semana: 'Semana 4', range: 'Oct 26–31', days: [['Oct',26],['Oct',27],['Oct',28],['Oct',29],['Oct',30],['Oct',31]] },
+    { month: 'Noviembre', semana: 'Semana 1', range: 'Nov 2–7', days: [['Nov',2],['Nov',3],['Nov',4],['Nov',5],['Nov',6],['Nov',7]] },
+    { month: 'Noviembre', semana: 'Semana 2', range: 'Nov 9–14', days: [['Nov',9],['Nov',10],['Nov',11],['Nov',12],['Nov',13],['Nov',14]] },
+    { month: 'Noviembre', semana: 'Semana 3', range: 'Nov 16–21', days: [['Nov',16],['Nov',17],['Nov',18],['Nov',19],['Nov',20],['Nov',21]] }
+  ];
+  const WEEKDAY_LETTERS = ['L','M','M','J','V','S'];
+
+  function buildDefaultDays(){
+    const days = [];
+    WEEK_GROUPS.forEach((g, gi) => {
+      g.days.forEach((d, di) => {
+        days.push({ id: d[0] + d[1], month: d[0], num: d[1], letter: WEEKDAY_LETTERS[di], groupIndex: gi, isGroupStart: di === 0 });
+      });
+    });
+    return days;
+  }
+
+  // Extracted directly from the uploaded PDF's Gantt grid (pixel-level read of the
+  // yellow-highlighted cells), by activity name -> array of day ids ("Sep16", "Oct3", ...).
+  const SCHEDULE_DATA = {
+    'Inst. eléctricas': ['Sep16','Sep17','Sep18','Sep19','Sep21','Sep22','Sep23'],
+    'Inst. hidráulicas': ['Sep17','Sep18','Sep19','Sep21','Sep22','Sep23','Sep24'],
+    'Inst. sanitarias': ['Sep22','Sep23','Sep24','Sep25','Sep26','Sep28','Sep29','Sep30'],
+    'Inst. aguas lluvias': ['Sep17','Sep18','Sep19','Sep21','Sep22','Sep23','Sep24','Sep25'],
+    'Viga superior - machones': ['Sep21','Sep22','Sep23','Sep24','Sep25','Sep26'],
+    'Pañete interior': ['Sep25','Sep26','Sep28','Sep29','Sep30','Oct1','Oct2','Oct3','Oct5','Oct6','Oct7','Oct8','Oct9','Oct10'],
+    'Pañete exterior': ['Oct5','Oct6','Oct7','Oct8','Oct9','Oct10','Oct12','Oct13','Oct14','Oct15','Oct16','Oct17'],
+    'Relleno zona piscina': ['Sep24','Sep25','Sep26','Sep28','Sep29','Sep30','Oct1','Oct2','Oct3'],
+    'Andén': ['Sep24','Sep25','Sep26','Sep28','Sep29','Sep30','Oct1','Oct2','Oct3','Oct5','Oct6','Oct7','Oct8','Oct9','Oct10','Oct12','Oct13','Oct14','Oct15','Oct16','Oct17'],
+    'Poza séptica': ['Sep21','Sep22','Sep23','Sep24','Sep25','Sep26','Sep28','Sep29','Sep30','Oct1','Oct2'],
+    'Cubierta': ['Sep17','Sep18','Sep19','Sep21','Sep22','Oct1','Oct2','Oct3','Oct5','Oct6','Oct7','Oct8','Oct9'],
+    'Redoblón': ['Sep25','Sep26','Sep28','Sep29','Sep30','Oct1','Oct2','Oct9','Oct10','Oct12','Oct13','Oct14','Oct15','Oct16'],
+    'Molduras cubierta': ['Oct1','Oct2','Oct3','Oct5','Oct6','Oct7','Oct8','Oct9','Oct10','Oct12','Oct13','Oct14','Oct15','Oct16','Oct17'],
+    'Cielo raso': ['Sep30','Oct1','Oct2','Oct3','Oct5','Oct6','Oct7','Oct15','Oct16','Oct17','Oct19','Oct20','Oct21','Oct22','Oct23','Oct24'],
+    'Acabado muros interiores': ['Oct8','Oct9','Oct10','Oct12','Oct13','Oct14','Oct15','Oct16','Oct17','Oct19','Oct20','Oct21','Oct22','Oct23','Oct24','Oct26','Oct27','Oct28'],
+    'Acabado muros exteriores': ['Oct12','Oct13','Oct14','Oct15','Oct16','Oct17','Oct19','Oct20','Oct21','Oct22','Oct23','Oct24','Oct26','Oct27','Oct28','Oct29','Oct30','Oct31','Nov2','Nov3','Nov4'],
+    'Impermeabilización viga canal': ['Sep28','Sep29','Sep30','Oct1','Oct2','Oct3','Oct5'],
+    'Carpintería metálica': ['Oct15','Oct16','Oct17','Oct19','Oct20','Oct21','Oct22','Oct23','Oct24','Oct26','Oct27','Oct28','Oct29','Oct30','Oct31'],
+    'Carpintería madera': ['Oct15','Oct16','Oct17','Oct19','Oct20','Oct21','Oct22','Oct23','Oct24','Oct26','Oct27','Oct28','Oct29','Oct30','Oct31'],
+    'Terminación plantilla': ['Nov2','Nov3','Nov4','Nov5','Nov6','Nov7','Nov9','Nov10','Nov11','Nov12','Nov13','Nov14','Nov16','Nov17','Nov18','Nov19','Nov20','Nov21']
+  };
+
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  // Fixed biweekly payment periods (cortes), generated forward from the same
+  // Mon–Sat work-week pattern as the cronograma, starting Sep 14. This reproduces
+  // the 5 periods from the CSV exactly and extends them to cover the whole project.
+  const PERIOD_COUNT = 15;
+  const MONTH_ABBR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  function fmtDate(d){ return MONTH_ABBR[d.getMonth()] + ' ' + String(d.getDate()).padStart(2, '0'); }
+  function generatePaymentPeriods(count){
+    const periods = [];
+    const base = new Date(2026, 8, 14); // Sep 14, 2026 (Monday) — start of the cronograma
+    for (let i = 0; i < count; i++) {
+      const weekAStart = new Date(base); weekAStart.setDate(base.getDate() + i * 14);
+      const weekBEnd = new Date(weekAStart); weekBEnd.setDate(weekAStart.getDate() + 12);
+      periods.push(fmtDate(weekAStart) + ' – ' + fmtDate(weekBEnd));
+    }
+    return periods;
+  }
+  const PAYMENT_PERIODS = generatePaymentPeriods(PERIOD_COUNT);
+
+  // Budget line items imported from casa-tracker-2026-09-21.csv (Actividad, Unidad,
+  // Cant. Total, Precio/Unidad, Cant. Acumulada, and the first 5 biweekly "Pago" columns —
+  // padded here to PERIOD_COUNT cortes so there's room to keep logging future payments).
+  const IMPORTED_ACTIVITIES = [
+    { name: 'Trazado y Replanteo', unit: 'm2', unitPrice: 4000, quantity: 207, qtyDone: 207, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Excavacion ( Zapatas )', unit: 'm3', unitPrice: 30000, quantity: 39.93, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Excavacion ( Vigas Cimiento )', unit: 'ml', unitPrice: 15000, quantity: 176, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Relleno Zapatas', unit: 'm3', unitPrice: 22000, quantity: 13.76, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Relleno Contrapiso ( Material Seleccionado )', unit: 'm3', unitPrice: 22000, quantity: 214.45, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Relleno Contrapiso ( Material Sitio )', unit: 'm2', unitPrice: 22100, quantity: 285, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Relleno Contrapiso ( Material Sitio )', unit: 'm3', unitPrice: 22000, quantity: 180.5, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Viga Cimiento', unit: 'ml', unitPrice: 40000, quantity: 151.44, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Viga Cimiento', unit: 'ml', unitPrice: 50000, quantity: 176, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Zapatas', unit: 'und', unitPrice: 700000, quantity: 18, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Jornales', unit: 'und', unitPrice: 60000, quantity: 69, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Otros ( Combustible )', unit: 'gl', unitPrice: 15000, quantity: 1, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Otros ( Combustible y Malla Arena )', unit: 'und', unitPrice: 30000, quantity: 1, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Alquiler Vibrador de Concreto', unit: 'und', unitPrice: 60000, quantity: 1, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Alquier Mezcladora ( Transporte y Gasolina )', unit: 'und', unitPrice: 300000, quantity: 1, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Sobrenivel Bloque 015', unit: 'ml', unitPrice: 12000, quantity: 176, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Viga Canal 0.90', unit: 'ml', unitPrice: 60000, quantity: 115, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Arreglo Entrada', unit: 'und', unitPrice: 3000000, quantity: 1, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Columnetas de Confinamiento 10x10', unit: 'ml', unitPrice: 90000, quantity: 165, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Levante Bloque 09', unit: 'm2', unitPrice: 15000, quantity: 125, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Levante Bloque 09', unit: 'ml', unitPrice: 10000, quantity: 194, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Losa Aligerada ( Vigas de 30x45 )', unit: 'm2', unitPrice: 60000, quantity: 8.96, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Viga Aerea 0.90', unit: 'ml', unitPrice: 60000, quantity: 133, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Viga Canal 0.90', unit: 'ml', unitPrice: 40000, quantity: 63.2, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Fino Pulido Viga Canal', unit: 'ml', unitPrice: 25000, quantity: 58, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Fino Pulido Placa Tanques', unit: 'm2', unitPrice: 35000, quantity: 9.2, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Media Caña Viga Canal', unit: 'ml', unitPrice: 7000, quantity: 130, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Pañete Viga Canal', unit: 'ml', unitPrice: 15000, quantity: 120.81, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Machones Concreto Cuchillas', unit: 'und', unitPrice: 250000, quantity: 10, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Trazado y Replanteo Sobreplantilla', unit: 'm2', unitPrice: 4000, quantity: 207, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Placa Contrapiso 0.08', unit: 'm2', unitPrice: 17000, quantity: 329.92, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Construccion Albercas', unit: 'und', unitPrice: 4000000, quantity: 2, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Columnetas de Confinamiento 15x15', unit: 'ml', unitPrice: 120000, quantity: 19, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Dimteles de Antepecho Ventanas', unit: 'ml', unitPrice: 24000, quantity: 34.85, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Cubierta en Lamina Española', unit: 'm2', unitPrice: 28000, quantity: 134.5, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Viga Amarre Superior 0.20x10', unit: 'ml', unitPrice: 24000, quantity: 95, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Dovelas de Refuerzo Muros', unit: 'ml', unitPrice: 4000, quantity: 285.9, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Pañete Interior', unit: 'm2', unitPrice: 18000, quantity: 310, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Pañete Interior Lineal', unit: 'm2', unitPrice: 13500, quantity: 0, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Pañete Exterior', unit: 'm2', unitPrice: 23000, quantity: 361, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Pañete Exterior Lineal', unit: 'm2', unitPrice: 17200, quantity: 0, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Pañete Exterior Impermeabilizado', unit: 'm2', unitPrice: 25000, quantity: 36, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Poza Septica', unit: 'und', unitPrice: 3500000, quantity: 1, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Demolicion Muro', unit: 'm2', unitPrice: 10000, quantity: 9.19, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] },
+    { name: 'Demolicion Muro', unit: 'ml', unitPrice: 7000, quantity: 73.92, qtyDone: 0, periodPayments: [0, 0, 0, 0, 0] }
+  ];
+
+  function padPeriods(arr){
+    const out = (arr || []).slice(0, PERIOD_COUNT);
+    while (out.length < PERIOD_COUNT) out.push(0);
+    return out;
+  }
+
+  function buildDefaultState(){
+    const scheduleActivities = DEFAULT_ACTIVITIES.map(name => ({ id: uid(), name }));
+    const budgetItems = IMPORTED_ACTIVITIES.map(item => ({
+      id: uid(), name: item.name, unit: item.unit, unitPrice: item.unitPrice,
+      quantity: item.quantity, qtyDone: item.qtyDone,
+      periodPayments: padPeriods(item.periodPayments), expanded: false
+    }));
+    const days = buildDefaultDays();
+    const cells = {};
+    scheduleActivities.forEach(act => {
+      const marked = SCHEDULE_DATA[act.name] || [];
+      marked.forEach(dayId => { cells[act.id + ':' + dayId] = 'planned'; });
+    });
+    return { scheduleActivities, budgetItems, days, cells };
+  }
+
+  function loadState(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // safety: pad any shorter period arrays (e.g. from an older save) up to PERIOD_COUNT
+        if (Array.isArray(parsed.budgetItems)) {
+          parsed.budgetItems.forEach(item => { item.periodPayments = padPeriods(item.periodPayments); });
+        }
+        return parsed;
+      }
+      // Migrate from the previous version, if present: keep schedule progress (day clicks)
+      // and any budget edits the user already made; pad their cortes to PERIOD_COUNT.
+      const old = localStorage.getItem('houseBuild_v4') || localStorage.getItem('houseBuild_v3') || localStorage.getItem('houseBuild_v2') || localStorage.getItem('houseBuild_v1');
+      if (old) {
+        const oldState = JSON.parse(old);
+        const fresh = buildDefaultState();
+        if (Array.isArray(oldState.budgetItems)) {
+          fresh.budgetItems = oldState.budgetItems.map(item => ({ ...item, periodPayments: padPeriods(item.periodPayments) }));
+        }
+        const oldScheduleActs = Array.isArray(oldState.scheduleActivities) ? oldState.scheduleActivities : oldState.activities;
+        if (Array.isArray(oldScheduleActs) && oldState.cells) {
+          // carry over any day-status clicks the user already made, matched by activity name
+          fresh.scheduleActivities.forEach(freshAct => {
+            const match = oldScheduleActs.find(a => a.name === freshAct.name);
+            if (!match) return;
+            fresh.days.forEach(d => {
+              const oldKey = match.id + ':' + d.id;
+              const newKey = freshAct.id + ':' + d.id;
+              if (oldState.cells[oldKey] && oldState.cells[oldKey] !== 'planned') {
+                fresh.cells[newKey] = oldState.cells[oldKey];
+              }
+            });
+          });
+        }
+        return fresh;
+      }
+    } catch(e) { console.error('No se pudo leer el estado guardado', e); }
+    return buildDefaultState();
+  }
+
+  let state = loadState();
+
+  function save(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch(e) { console.error('No se pudo guardar el estado', e); }
+  }
+
+  function money(n){
+    if (!isFinite(n)) n = 0;
+    return '$' + Math.round(n).toLocaleString('es-CO');
+  }
+
+  const unitLabel = { m2: 'm²', ml: 'ml', m3: 'm³', und: 'und', gl: 'gl' };
+
+  const ICONS = {
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    half: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16" fill="currentColor" stroke="none"/></svg>',
+    dot: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4.5"/></svg>'
+  };
+
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-' + btn.dataset.view).classList.add('active');
+    });
+  });
+
+  function renderSchedule(){
+    // group days by month and by week-group for the header colspans
+    const monthGroups = [];
+    state.days.forEach((d, i) => {
+      const last = monthGroups[monthGroups.length - 1];
+      const groupLabel = WEEK_GROUPS[d.groupIndex] ? WEEK_GROUPS[d.groupIndex].month : 'Extra';
+      if (last && last.label === groupLabel) last.count++;
+      else monthGroups.push({ label: groupLabel, count: 1 });
+    });
+    const weekGroups = [];
+    state.days.forEach((d) => {
+      const last = weekGroups[weekGroups.length - 1];
+      const g = WEEK_GROUPS[d.groupIndex];
+      const label = g ? (g.semana + '<br>' + g.range) : 'Extra';
+      const key = d.groupIndex + ':' + label;
+      if (last && last.key === key) last.count++;
+      else weekGroups.push({ key, label, count: 1 });
+    });
+
+    const thead = document.getElementById('sched-thead');
+    thead.innerHTML = `
+      <tr class="month-row"><th class="activity-header" rowspan="4">Actividad</th>${monthGroups.map(g => `<th colspan="${g.count}" class="group-start">${escapeHtml(g.label)}</th>`).join('')}</tr>
+      <tr class="semana-row">${weekGroups.map(g => `<th colspan="${g.count}" class="group-start">${g.label}</th>`).join('')}</tr>
+      <tr class="letter-row">${state.days.map(d => `<th class="${d.isGroupStart ? 'group-start' : ''}">${d.letter}</th>`).join('')}</tr>
+      <tr class="num-row">${state.days.map(d => `<th class="${d.isGroupStart ? 'group-start' : ''}">${d.num}</th>`).join('')}</tr>
+    `;
+
+    const body = document.getElementById('sched-body');
+    body.innerHTML = state.scheduleActivities.map(act => {
+      const cells = state.days.map(d => {
+        const key = act.id + ':' + d.id;
+        const cellState = state.cells[key] || '';
+        const icon = cellState === 'done' ? ICONS.check : cellState === 'progress' ? ICONS.half : cellState === 'planned' ? ICONS.dot : '';
+        return `<td class="week-cell ${d.isGroupStart ? 'group-start' : ''}" data-state="${cellState}" data-act="${act.id}" data-day="${d.id}"><span class="week-chip">${icon}</span></td>`;
+      }).join('');
+      return `<tr><td>${escapeHtml(act.name)}</td>${cells}</tr>`;
+    }).join('');
+
+    body.querySelectorAll('.week-cell').forEach(cell => {
+      cell.addEventListener('click', () => {
+        const key = cell.dataset.act + ':' + cell.dataset.day;
+        const order = ['', 'planned', 'progress', 'done'];
+        const current = state.cells[key] || '';
+        const next = order[(order.indexOf(current) + 1) % order.length];
+        if (next === '') delete state.cells[key];
+        else state.cells[key] = next;
+        save();
+        renderSchedule();
+      });
+    });
+  }
+
+  document.getElementById('add-day-btn').addEventListener('click', () => {
+    const month = prompt('Mes del nuevo día (ej: "Nov")');
+    if (!month) return;
+    const numStr = prompt('Número del día (ej: 24)');
+    const num = parseInt(numStr, 10);
+    if (!numStr || isNaN(num)) return;
+    const newId = month + num;
+    if (state.days.some(d => d.id === newId)) { alert('Ese día ya existe en el cronograma.'); return; }
+    const lastGroupIndex = state.days.length ? state.days[state.days.length - 1].groupIndex : 0;
+    state.days.push({ id: newId, month, num, letter: '', groupIndex: lastGroupIndex + 1, isGroupStart: true });
+    save();
+    renderSchedule();
+  });
+
+  function activityTotals(item){
+    const budget = item.unitPrice * item.quantity;
+    const paid = item.qtyDone * item.unitPrice;
+    const pct = item.quantity > 0 ? Math.min(100, (item.qtyDone / item.quantity) * 100) : 0;
+    const estado = pct <= 0 ? 'todo' : pct >= 100 ? 'done' : 'progress';
+    const estadoLabel = pct <= 0 ? 'Sin iniciar' : pct >= 100 ? 'Completado' : 'En progreso';
+    return { budget, paid, remaining: budget - paid, pct, estado, estadoLabel };
+  }
+
+  function renderSummary(){
+    let totalBudget = 0, totalPaid = 0;
+    state.budgetItems.forEach(item => {
+      const t = activityTotals(item);
+      totalBudget += t.budget;
+      totalPaid += t.paid;
+    });
+    const overallPct = totalBudget > 0 ? (totalPaid / totalBudget) * 100 : 0;
+    document.getElementById('stat-total').textContent = money(totalBudget);
+    document.getElementById('stat-paid').textContent = money(totalPaid);
+    document.getElementById('stat-remaining').textContent = money(totalBudget - totalPaid);
+    document.getElementById('stat-pct').textContent = Math.round(overallPct) + '%';
+  }
+
+  function renderActivities(){
+    const body = document.getElementById('activities-body');
+    body.innerHTML = '';
+
+    state.budgetItems.forEach(item => {
+      const t = activityTotals(item);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="name-cell">
+          <input type="text" value="${escapeAttr(item.name)}" data-field="name" data-id="${item.id}">
+          <button class="expand-toggle" data-toggle="${item.id}">${item.expanded ? '▾ Ocultar cortes' : '▸ Ver cortes'}</button>
+        </td>
+        <td>
+          <select data-field="unit" data-id="${item.id}">
+            <option value="m2" ${item.unit==='m2'?'selected':''}>m² (cuadrado)</option>
+            <option value="ml" ${item.unit==='ml'?'selected':''}>ml (lineal)</option>
+            <option value="m3" ${item.unit==='m3'?'selected':''}>m³ (cúbico)</option>
+            <option value="und" ${item.unit==='und'?'selected':''}>und (unidad)</option>
+            <option value="gl" ${item.unit==='gl'?'selected':''}>gl (galón)</option>
+          </select>
+        </td>
+        <td class="num-cell"><input type="number" min="0" step="any" value="${item.quantity}" data-field="quantity" data-id="${item.id}"></td>
+        <td class="num-cell"><input type="number" min="0" step="any" value="${item.unitPrice}" data-field="unitPrice" data-id="${item.id}"></td>
+        <td class="num-cell">${money(t.budget)}</td>
+        <td class="num-cell"><input type="number" min="0" step="any" value="${item.qtyDone}" data-field="qtyDone" data-id="${item.id}"></td>
+        <td class="num-cell">${money(t.paid)}</td>
+        <td class="num-cell">${money(t.remaining)}</td>
+        <td>
+          <span class="progress-track"><span style="width:${t.pct}%"></span></span>
+          <span class="pct-text">${t.pct.toFixed(0)}%</span>
+        </td>
+        <td><span class="badge ${t.estado}">${t.estadoLabel}</span></td>
+        <td class="actions-cell"><button class="btn danger-txt small" data-remove="${item.id}">Eliminar</button></td>
+      `;
+      body.appendChild(tr);
+
+      if (item.expanded) {
+        const periodsTr = document.createElement('tr');
+        periodsTr.className = 'periods-row';
+        const td = document.createElement('td');
+        td.colSpan = 11;
+        td.innerHTML = renderPeriodsPanel(item, t);
+        periodsTr.appendChild(td);
+        body.appendChild(periodsTr);
+      }
+    });
+
+    body.querySelectorAll('input[data-field], select[data-field]').forEach(el => {
+      el.addEventListener('change', () => {
+        const item = state.budgetItems.find(a => a.id === el.dataset.id);
+        if (!item) return;
+        const field = el.dataset.field;
+        item[field] = (field === 'unitPrice' || field === 'quantity' || field === 'qtyDone') ? (parseFloat(el.value) || 0) : el.value;
+        save();
+        renderActivities();
+        renderSummary();
+      });
+    });
+
+    body.querySelectorAll('[data-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = state.budgetItems.find(a => a.id === btn.dataset.toggle);
+        item.expanded = !item.expanded;
+        renderActivities();
+      });
+    });
+
+    body.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!confirm('¿Eliminar esta actividad?')) return;
+        state.budgetItems = state.budgetItems.filter(a => a.id !== btn.dataset.remove);
+        save();
+        renderActivities();
+        renderSummary();
+      });
+    });
+
+    body.querySelectorAll('[data-period-input]').forEach(el => {
+      el.addEventListener('change', () => {
+        const item = state.budgetItems.find(a => a.id === el.dataset.act);
+        if (!item) return;
+        const idx = parseInt(el.dataset.periodIdx, 10);
+        item.periodPayments[idx] = parseFloat(el.value) || 0;
+        save();
+        renderActivities();
+      });
+    });
+  }
+
+  function renderPeriodsPanel(item, totals){
+    const fields = PAYMENT_PERIODS.map((label, i) => `
+      <div class="period-field">
+        <label>Corte ${i + 1}<br>${escapeHtml(label)}</label>
+        <input type="number" min="0" step="any" value="${item.periodPayments[i] || 0}" data-period-input data-act="${item.id}" data-period-idx="${i}">
+      </div>
+    `).join('');
+    const sumPeriods = item.periodPayments.reduce((s, v) => s + (v || 0), 0);
+
+    return `
+      <div class="periods-grid">${fields}</div>
+      <p class="periods-summary">
+        Suma de los cortes registrados arriba: <b>${money(sumPeriods)}</b> ·
+        Pagado según cantidad acumulada (${item.qtyDone} ${unitLabel[item.unit] || item.unit} × precio/unidad): <b>${money(totals.paid)}</b>
+      </p>
+    `;
+  }
+
+  document.getElementById('add-activity-btn').addEventListener('click', () => {
+    state.budgetItems.push({
+      id: uid(), name: 'Nueva actividad', unit: 'm2', unitPrice: 0, quantity: 0,
+      qtyDone: 0, periodPayments: new Array(PERIOD_COUNT).fill(0), expanded: true
+    });
+    save();
+    renderActivities();
+    renderSummary();
+  });
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function escapeAttr(s){ return escapeHtml(s); }
+
+  renderSchedule();
+  renderActivities();
+  renderSummary();
+})();
+</script>
+</body>
+</html>
